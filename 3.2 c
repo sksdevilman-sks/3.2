@@ -1,0 +1,137 @@
+package com.example.bankapp;
+
+import javax.persistence.*;
+
+@Entity
+@Table(name = "account")
+public class Account {
+    @Id
+    private int id;
+    private String name;
+    private double balance;
+
+    public Account() {}
+
+    public Account(int id, String name, double balance) {
+        this.id = id;
+        this.name = name;
+        this.balance = balance;
+    }
+
+    // Getters and setters
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public double getBalance() { return balance; }
+    public void setBalance(double balance) { this.balance = balance; }
+}
+
+
+package com.example.bankapp;
+
+import javax.persistence.*;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class AccountDAO {
+    @PersistenceContext
+    private EntityManager em;
+
+    public Account getAccount(int id) {
+        return em.find(Account.class, id);
+    }
+
+    public void updateAccount(Account acc) {
+        em.merge(acc);
+    }
+}
+
+
+package com.example.bankapp;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class BankService {
+
+    @Autowired
+    private AccountDAO dao;
+
+    @Transactional
+    public void transferMoney(int fromId, int toId, double amount) {
+        Account fromAcc = dao.getAccount(fromId);
+        Account toAcc = dao.getAccount(toId);
+
+        if (fromAcc.getBalance() < amount) {
+            throw new RuntimeException("Insufficient funds!");
+        }
+
+        fromAcc.setBalance(fromAcc.getBalance() - amount);
+        toAcc.setBalance(toAcc.getBalance() + amount);
+
+        dao.updateAccount(fromAcc);
+        dao.updateAccount(toAcc);
+
+        System.out.println("Transaction successful!");
+    }
+}
+
+
+package com.example.bankapp;
+
+import org.springframework.context.annotation.*;
+import org.springframework.orm.jpa.*;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
+import javax.persistence.EntityManagerFactory;
+import javax.sql.DataSource;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+
+@Configuration
+@ComponentScan(basePackages = "com.example.bankapp")
+@EnableTransactionManagement
+public class AppConfig {
+
+    @Bean
+    public DataSource dataSource() {
+        DriverManagerDataSource ds = new DriverManagerDataSource();
+        ds.setDriverClassName("com.mysql.cj.jdbc.Driver");
+        ds.setUrl("jdbc:mysql://localhost:3306/bankdb");
+        ds.setUsername("root");
+        ds.setPassword("password");
+        return ds;
+    }
+
+    @Bean
+    public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
+        LocalContainerEntityManagerFactoryBean emf = new LocalContainerEntityManagerFactoryBean();
+        emf.setDataSource(dataSource());
+        emf.setPackagesToScan("com.example.bankapp");
+        emf.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
+        return emf;
+    }
+
+    @Bean
+    public JpaTransactionManager transactionManager(EntityManagerFactory emf) {
+        return new JpaTransactionManager(emf);
+    }
+}
+
+
+package com.example.bankapp;
+
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+
+public class MainApp {
+    public static void main(String[] args) {
+        AnnotationConfigApplicationContext ctx =
+                new AnnotationConfigApplicationContext(AppConfig.class);
+
+        BankService service = ctx.getBean(BankService.class);
+        service.transferMoney(1, 2, 5000);
+
+        ctx.close();
+    }
+}
