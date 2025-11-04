@@ -1,0 +1,136 @@
+package com.example.hibernatecrud;
+
+import javax.persistence.*;
+
+@Entity
+@Table(name = "student")
+public class Student {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private int id;
+
+    @Column(name = "name")
+    private String name;
+
+    @Column(name = "course")
+    private String course;
+
+    @Column(name = "marks")
+    private int marks;
+
+    public Student() {}
+
+    public Student(String name, String course, int marks) {
+        this.name = name;
+        this.course = course;
+        this.marks = marks;
+    }
+
+    // Getters and setters
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public String getCourse() { return course; }
+    public void setCourse(String course) { this.course = course; }
+    public int getMarks() { return marks; }
+    public void setMarks(int marks) { this.marks = marks; }
+}
+
+
+
+<!DOCTYPE hibernate-configuration PUBLIC
+        "-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+        "http://hibernate.sourceforge.net/hibernate-configuration-3.0.dtd">
+<hibernate-configuration>
+    <session-factory>
+        <property name="hibernate.connection.driver_class">com.mysql.cj.jdbc.Driver</property>
+        <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/springdb</property>
+        <property name="hibernate.connection.username">root</property>
+        <property name="hibernate.connection.password">password</property>
+        <property name="hibernate.dialect">org.hibernate.dialect.MySQL8Dialect</property>
+        <property name="show_sql">true</property>
+        <mapping class="com.example.hibernatecrud.Student"/>
+    </session-factory>
+</hibernate-configuration>
+
+
+
+package com.example.hibernatecrud;
+
+import org.hibernate.*;
+import org.hibernate.cfg.Configuration;
+
+import java.util.List;
+
+public class StudentDAO {
+    private SessionFactory factory = new Configuration().configure().buildSessionFactory();
+
+    // Create
+    public void addStudent(Student s) {
+        Session session = factory.openSession();
+        Transaction tx = session.beginTransaction();
+        session.save(s);
+        tx.commit();
+        session.close();
+        System.out.println("Student added successfully!");
+    }
+
+    // Read
+    public List<Student> getAllStudents() {
+        Session session = factory.openSession();
+        List<Student> list = session.createQuery("from Student", Student.class).list();
+        session.close();
+        return list;
+    }
+
+    // Update
+    public void updateStudent(int id, int newMarks) {
+        Session session = factory.openSession();
+        Transaction tx = session.beginTransaction();
+        Student s = session.get(Student.class, id);
+        if (s != null) {
+            s.setMarks(newMarks);
+            session.update(s);
+        }
+        tx.commit();
+        session.close();
+        System.out.println("Student updated!");
+    }
+
+    // Delete
+    public void deleteStudent(int id) {
+        Session session = factory.openSession();
+        Transaction tx = session.beginTransaction();
+        Student s = session.get(Student.class, id);
+        if (s != null) {
+            session.delete(s);
+        }
+        tx.commit();
+        session.close();
+        System.out.println("Student deleted!");
+    }
+}
+
+
+
+package com.example.hibernatecrud;
+
+import java.util.List;
+
+public class MainApp {
+    public static void main(String[] args) {
+        StudentDAO dao = new StudentDAO();
+
+        dao.addStudent(new Student("Aarav", "Java", 85));
+        dao.addStudent(new Student("Diya", "Spring", 90));
+
+        List<Student> students = dao.getAllStudents();
+        for (Student s : students) {
+            System.out.println(s.getId() + " " + s.getName() + " " + s.getCourse() + " " + s.getMarks());
+        }
+
+        dao.updateStudent(1, 95);
+        dao.deleteStudent(2);
+    }
+}
